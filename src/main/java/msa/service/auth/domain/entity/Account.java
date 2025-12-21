@@ -1,4 +1,4 @@
-package msa.service.auth.entity;
+package msa.service.auth.domain.entity;
 
 
 import jakarta.persistence.Column;
