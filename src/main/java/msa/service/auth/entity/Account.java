@@ -23,6 +23,10 @@ public class Account {
     @Column(nullable = false, unique = true)
     private String email;
 
+    // oAuth 가입자의 경우 OAUTH 문자열이 들어가게됨.
+    @Column(nullable = false)
+    private String password;
+
     @Column
     private String userName;
 
