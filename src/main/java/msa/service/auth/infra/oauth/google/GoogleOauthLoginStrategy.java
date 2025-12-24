@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 /**
  * Oauth: https://developers.google.com/identity/protocols/oauth2/web-server
@@ -20,7 +20,7 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
     @Value("${google.oauth.client-id}")
     private String clientId;
@@ -43,7 +43,6 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
         // 공식문서에 따르면 userinfo.sub() : 각 사용자의 고유한 식별 키.
         GoogleUserInfoResponse userInfo = getUserInformation(tokenResponse.accessToken());
 
-
         return OauthUserInfo.from(
                 userInfo.email(),
                 userInfo.sub()
@@ -60,40 +59,29 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
     private GoogleTokenResponse getGoogleAccessToken(String authCode) {
         String accessTokenApi = "https://oauth2.googleapis.com/token";
 
-        // 1. 인증 코드로 access 토큰 요청하기
-        HttpHeaders headers = new HttpHeaders();
-
+        // 인증 코드로 access 토큰 요청하기
         String body = "code=" + authCode +
                 "&client_id=" + clientId +
-                "&redirect_url=" + redirectUrl +
+                "&client_secret=" + clientSecret +
+                "&redirect_uri=" + redirectUrl +
                 "&grant_type=authorization_code";
 
+        GoogleTokenResponse result = restClient.post()
+                .uri(accessTokenApi)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(body)
+                .retrieve()
+                .body(GoogleTokenResponse.class);
 
-        HttpEntity<String> request = new HttpEntity<>(body, headers);
-
-        try {
-            // authCode -> accessToken 발급
-            ResponseEntity<GoogleTokenResponse> response = restTemplate.exchange(
-                    accessTokenApi,
-                    HttpMethod.POST,
-                    request,
-                    GoogleTokenResponse.class
+        if (result == null || result.accessToken() == null) {
+            throw new SecurityException(
+                    "GoogleOauthLoginStrategy.verifyAndExtract(): Invalid auth code"
             );
-
-            GoogleTokenResponse result = response.getBody();
-
-            // 발급 실패 -> authCode 오류
-            if (result == null || result.accessToken() == null) {
-                throw new SecurityException(
-                        "GoogleOauthLoginStrategy.verifyAndExtract(): Invalid auth code"
-                );
-            }
-
-            return result;
-        } catch (HttpClientErrorException e) {
-            throw new IllegalArgumentException(
-                    "GoogleOauthLoginStrategy.verifyAndExtract(): Invalid auth code");
         }
+
+        System.out.println("result: " + result);
+
+        return result;
     }
 
     /**
@@ -110,27 +98,17 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
 
         HttpEntity<String> request = new HttpEntity<>(headers);
 
-        try {
-            ResponseEntity<GoogleUserInfoResponse> res = restTemplate.exchange(
-                    userInfoApi,
-                    HttpMethod.GET,
-                    request,
-                    GoogleUserInfoResponse.class
-            );
+        GoogleUserInfoResponse info = restClient.get()
+                .uri(userInfoApi)
+                .headers(h -> h.setBearerAuth(accessToken))
+                .retrieve()
+                .body(GoogleUserInfoResponse.class);
 
-            GoogleUserInfoResponse info = res.getBody();
-
-            if (info == null) {
-                throw new IllegalArgumentException(
-                        "GoogleOauthLoginStrategy.getUserInformation(): Invalid access token");
-            }
-
-            return info;
-        } catch (Exception e) {
+        if (info == null || info.sub() == null) {
             throw new IllegalArgumentException(
-                    "GoogleOauthLoginStrategy.getUserInformation(): Invalid access token"
-            );
+                    "GoogleOauthLoginStrategy.getUserInformation(): Invalid access token");
         }
 
+        return info;
     }
 }
