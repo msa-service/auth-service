@@ -3,4 +3,7 @@
 [O] Strategy + Resolver을 통하여 Oauth 처리하기
     - oAuth 요청 -> auth_token을 통하여 사용자 정보 추출 부분 처리
     - 기본 oAuth으로 github과 google 추가
-[/] GoogleOauthLoginStrategy 세부 사항 구현하기
+[O] GoogleOauthLoginStrategy 세부 사항 구현하기
+[O] AuthService에서 로그인 처리.
+[ ] GithubOauthLoginStrategy 세부 사항 구현하기
+[/] 예외처리 체계화
