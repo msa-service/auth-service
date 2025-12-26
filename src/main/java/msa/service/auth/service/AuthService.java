@@ -2,6 +2,7 @@ package msa.service.auth.service;
 
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import msa.service.auth.domain.dto.OauthUserInfo;
 import msa.service.auth.domain.entity.Account;
 import msa.service.auth.domain.enums.LoginType;
@@ -14,8 +15,8 @@ import msa.service.auth.util.Snowflake;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.InvalidKeyException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -45,7 +46,11 @@ public class AuthService {
                     "OAUTH",
                     "ADMIN")
             );
+
+            log.info("AuthService::oAuthLogin - userId={}, CREATE", nowAccount.getUserId());
         }
+
+        log.info("AuthService::oauthLogin - userId={}, SUCCESS", nowAccount.getUserId());
 
         return LoginResponse.from(nowAccount.getProvider().toString(), nowAccount.getProviderId());
     }
