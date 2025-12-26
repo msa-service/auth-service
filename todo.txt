@@ -7,4 +7,5 @@
 [O] AuthService에서 로그인 처리.
 [O] GithubOauthLoginStrategy 세부 사항 구현하기
     - getUserInformation 이어서 하기 (25.12.25)
+[ ] SLF4J + Logback 추가하기
 [/] 예외처리 체계화

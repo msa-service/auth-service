@@ -15,8 +15,8 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @PostMapping("/v1/auth/login")
-    public LoginResponse login(@RequestBody OAuthRequest request) {
+    @PostMapping("/v1/auth/oauth")
+    public LoginResponse oauth(@RequestBody OAuthRequest request) {
         return authService.oAuthLogin(request);
     }
 
