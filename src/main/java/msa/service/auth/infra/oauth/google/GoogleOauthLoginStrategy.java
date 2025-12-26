@@ -7,14 +7,13 @@ import msa.service.auth.infra.oauth.OauthLoginStrategy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
  * Oauth: https://developers.google.com/identity/protocols/oauth2/web-server
  * OIDC: https://developers.google.com/identity/openid-connect/openid-connect#java
  * 
- * 따라서 사용자 정보 획득
+ * (2025-12-25 기준) 따라서 일련 과정 처리.
  */
 @Component
 @RequiredArgsConstructor
@@ -22,13 +21,13 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
 
     private final RestClient restClient;
 
-    @Value("${google.oauth.client-id}")
+    @Value("${oauth.google.client-id}")
     private String clientId;
 
-    @Value("${google.oauth.client-secret}")
+    @Value("${oauth.google.client-secret}")
     private String clientSecret;
 
-    @Value("${google.oauth.redirect-url}")
+    @Value("${oauth.google.redirect-url}")
     private String redirectUrl;
 
     @Override
@@ -38,7 +37,7 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
 
     @Override
     public OauthUserInfo verifyAndExtract(String authCode) {
-        GoogleTokenResponse tokenResponse = getGoogleAccessToken(authCode);
+        GoogleAccessTokenResponse tokenResponse = getGoogleAccessToken(authCode);
 
         // 공식문서에 따르면 userinfo.sub() : 각 사용자의 고유한 식별 키.
         GoogleUserInfoResponse userInfo = getUserInformation(tokenResponse.accessToken());
@@ -54,9 +53,8 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
      *
      * @param authCode Google OAuth 인증 과정에서 발급된 authorization code
      * @return Google API 접근에 사용되는 access token.
-     *
      */
-    private GoogleTokenResponse getGoogleAccessToken(String authCode) {
+    private GoogleAccessTokenResponse getGoogleAccessToken(String authCode) {
         String accessTokenApi = "https://oauth2.googleapis.com/token";
 
         // 인증 코드로 access 토큰 요청하기
@@ -66,12 +64,12 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
                 "&redirect_uri=" + redirectUrl +
                 "&grant_type=authorization_code";
 
-        GoogleTokenResponse result = restClient.post()
+        GoogleAccessTokenResponse result = restClient.post()
                 .uri(accessTokenApi)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(body)
                 .retrieve()
-                .body(GoogleTokenResponse.class);
+                .body(GoogleAccessTokenResponse.class);
 
         if (result == null || result.accessToken() == null) {
             throw new SecurityException(
