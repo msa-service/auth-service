@@ -10,3 +10,12 @@
 [O] SLF4J + Logback 추가하기
     - Log 규칙 : `{class_name}::{method_name} - {param}, {action}`
 [/] 예외처리 체계화
+    - GlobalExceptionHandler 추가하기
+    - BaseException 추가하기 (base on RuntimeException)
+    - enum을 관리 X -> 에러가 다양하지 않아서 class 단위로 관리
+    - service 계층: throw new SomeException("msg"); 형태로 사용.
+[/] Local 로그인 구현하기
+[/] JWT 추가하기
+[/] 로그 추가하기
+[/] Swagger 추가하기
+[/] 문서화
