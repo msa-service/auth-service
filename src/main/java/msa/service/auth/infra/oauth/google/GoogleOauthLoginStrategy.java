@@ -139,8 +139,8 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
             try {
                 String raw = StreamUtils.copyToString(res.getBody(), StandardCharsets.UTF_8);
 
-                GoogleErrorResponse error =
-                        objectMapper.readValue(raw, GoogleErrorResponse.class);
+                GithubErrorResponse error =
+                        objectMapper.readValue(raw, GithubErrorResponse.class);
 
                 // GoogleErrorResponse format 변경됨.
                 if (error.error() == null) {

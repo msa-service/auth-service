@@ -35,7 +35,6 @@ public class AuthService {
         // 2. 계정 정보 조회.
         Account nowAccount = getAccountByProvider(request.type(), userInfo.userProviderId());
 
-
         if (nowAccount == null) {
             // 기존 회원 X -> 새로가입.
 

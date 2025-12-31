@@ -1,6 +1,6 @@
 package msa.service.auth.infra.oauth.google;
 
-public record GoogleErrorResponse(
+public record GithubErrorResponse(
         String error,
         String errorDescription
 ) {
