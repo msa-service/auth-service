@@ -13,7 +13,7 @@ public class ErrorResponse{
     private String errorCode;
     private String message;
 
-    public static ErrorResponse from(String code, String message) {
+    public static ErrorResponse create(String code, String message) {
         return new ErrorResponse(code, message);
     }
 }

@@ -15,7 +15,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleNotFoundException(BaseException e) {
-        ErrorResponse errorResponse = ErrorResponse.from(e.getErrorCode(), e.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.create(e.getErrorCode(), e.getMessage());
 
         // error message format: {class_name}.{method_name}: ~~
 
