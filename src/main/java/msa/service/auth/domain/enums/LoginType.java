@@ -5,7 +5,8 @@ import msa.service.auth.domain.exception.BadRequestException;
 
 public enum LoginType {
     GOOGLE,
-    GITHUB;
+    GITHUB,
+    LOCAL;
 
     // 역직렬화 단게에서 대소문자 무시하고 변환시키기
     @JsonCreator
