@@ -15,6 +15,7 @@ import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
 import msa.service.auth.service.response.SignupResponse;
 import msa.service.auth.util.Snowflake;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
     private final AccountRepository accountRepository;
     private final OauthLoginStrategyResolver oauthLoginStrategyResolver;
+    private final PasswordEncoder passwordEncoder;
+
     private final Snowflake snowflake = new Snowflake();
 
     @Transactional
@@ -75,7 +78,7 @@ public class AuthService {
                 snowflake.nextId(),
                 LoginType.LOCAL,
                 request.email(),
-                request.password(),
+                passwordEncoder.encode(request.password()),
                 "GUEST"
         ));
 
