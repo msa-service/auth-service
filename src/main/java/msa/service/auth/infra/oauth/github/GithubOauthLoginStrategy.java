@@ -1,16 +1,23 @@
 package msa.service.auth.infra.oauth.github;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import msa.service.auth.domain.dto.OauthUserInfo;
 import msa.service.auth.domain.enums.LoginType;
+import msa.service.auth.domain.exception.ApiBadGateway;
+import msa.service.auth.domain.exception.BadRequestException;
+import msa.service.auth.domain.exception.InternalServerException;
 import msa.service.auth.infra.oauth.OauthLoginStrategy;
+import msa.service.auth.infra.oauth.google.GithubErrorResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.MultiValueMap;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -23,6 +30,7 @@ import java.util.List;
 public class GithubOauthLoginStrategy implements OauthLoginStrategy {
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${oauth.github.client-id}")
     private String clientId;
@@ -60,10 +68,14 @@ public class GithubOauthLoginStrategy implements OauthLoginStrategy {
                 .headers(h -> h.setAccept(List.of(MediaType.APPLICATION_JSON)))
                 .body(new GithubAccessTokenRequest(clientId, clientSecret, authCode))
                 .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError,
+                        handle4xxError("GithubOauthLoginStrategy.getGithubAccessToken()"))
+                .onStatus(HttpStatusCode::is5xxServerError,
+                        handle5xxError("access_token"))
                 .body(GithubAccessTokenResponse.class);
 
         if (result == null || result.accessToken() == null) {
-            throw new SecurityException(
+            throw new BadRequestException(
                     "GithubOauthLoginStrategy.getGithubAccessToken(): Invalid auth code"
             );
         }
@@ -71,6 +83,12 @@ public class GithubOauthLoginStrategy implements OauthLoginStrategy {
         return result;
     }
 
+    /**
+     * Github access token을 사용하여 사용자 정보를 조회
+     *
+     * @param accessToken Github Oauth을 통하여 발급된 access token.
+     * @return 인증된 사용자 정보
+     */
     private GithubUserInfoResponse getUserInformation(String accessToken) {
         String userInfoApi = "https://api.github.com/user";
 
@@ -81,6 +99,9 @@ public class GithubOauthLoginStrategy implements OauthLoginStrategy {
                     h.setAccept(List.of(MediaType.APPLICATION_JSON));
                 })
                 .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError,
+                        handle4xxError("GithubOauthLoginStrategy.getUserInformation()"))
+                .onStatus(HttpStatusCode::is5xxServerError, handle5xxError("user"))
                 .body(GithubUserInfoResponse.class);
 
         if (result == null || result.id() == null) {
@@ -90,5 +111,55 @@ public class GithubOauthLoginStrategy implements OauthLoginStrategy {
         }
 
         return result;
+    }
+
+    /**
+     * authCode -> accessToken을 요청하는 과정에서 4xx 상태 코드가 반환되는 경우
+     * accessToken -> information을 요청하는 과정에서 4xx 상태 코드가 반환되는 경우
+     * 이를 client로 전달될 실제 에러 처리 handler 제공
+     *
+     * @param where 에러가 발생한 위치
+     * @return ErrorHandler
+     */
+    private RestClient.ResponseSpec.ErrorHandler handle4xxError(String where) {
+        return (req, res) -> {
+            try {
+                String raw = StreamUtils.copyToString(res.getBody(), StandardCharsets.UTF_8);
+
+                GithubErrorResponse error =
+                        objectMapper.readValue(raw, GithubErrorResponse.class);
+
+                // GithubErrorResponse format 변경됨.
+                if (error.error() == null) {
+                    throw new InternalServerException(
+                            where + ": failed to read github error response"
+                    );
+                }
+
+                throw new BadRequestException(
+                        where + ": " + error.error()
+                );
+            } catch(IOException e) {
+                // objectMapper error -> GithubErrorResponse change.
+                throw new InternalServerException(
+                        where + ": failed to read github error response"
+                );
+            }
+        };
+    }
+
+    /**
+     * authCode -> accessToken을 요청하는 과정에서 5xx 상태 코드가 반환되는 경우
+     * accessToken -> information을 요청하는 과정에서 5xx 상태 코드가 반환되는 경우
+     * 이를 client로 전달될 실제 에러 처리 handler 제공
+     *
+     * @param api 에러를 반환한 실제 요청한 api 명
+     * @return ErrorHandler
+     */
+    private RestClient.ResponseSpec.ErrorHandler handle5xxError(String api) {
+        return (req, res) -> {
+            throw new ApiBadGateway(
+                    "Github " + api + " service is temporarily unavailable.");
+        };
     }
 }
