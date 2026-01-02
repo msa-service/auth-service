@@ -40,3 +40,8 @@ logging:
 # noinspection undefined
 product:
   level: PRO # PRO or DEV
+
+# noinspection undefined
+app:
+  base-url: http://localhost:9005
+  email-verify: /v1/auth/email/verify
