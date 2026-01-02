@@ -14,10 +14,15 @@ import msa.service.auth.service.request.OAuthRequest;
 import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
 import msa.service.auth.service.response.SignupResponse;
+import msa.service.auth.util.RedisKey;
 import msa.service.auth.util.Snowflake;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.util.UUID;
 
 
 @Slf4j
@@ -27,6 +32,8 @@ public class AuthService {
     private final AccountRepository accountRepository;
     private final OauthLoginStrategyResolver oauthLoginStrategyResolver;
     private final PasswordEncoder passwordEncoder;
+    private final StringRedisTemplate redisTemplate;
+    private final EmailService emailService;
 
     private final Snowflake snowflake = new Snowflake();
 
@@ -61,7 +68,7 @@ public class AuthService {
     }
 
     @Transactional
-    public SignupResponse localSignup(SignupRequest request) {
+    public void localSignup(SignupRequest request) {
         // 1. id 중복 조회.
         Account account = getAccountByProvider(LoginType.LOCAL, request.email());
 
@@ -73,16 +80,14 @@ public class AuthService {
         // 2. 비밀 번호 강도 조회.
         validatePassword(request.password());
 
-        // 3. 최종 저장
-        Account res = accountRepository.save(Account.create(
-                snowflake.nextId(),
-                LoginType.LOCAL,
-                request.email(),
-                passwordEncoder.encode(request.password()),
-                "GUEST"
-        ));
+        // 3. 현재 계정 정보를 redis에 저장.
+        String token = UUID.randomUUID().toString();
 
-        return SignupResponse.from(res.getUserId(), res.getRole());
+        saveTempUser(token, request.email(),
+                passwordEncoder.encode(request.password()));
+
+        // 4. 인증용 메일 전송
+        emailService.sendVerificationEmail(request.email(), token);
     }
 
     public Account getAccountByProvider(LoginType loginType, String id) {
@@ -136,5 +141,25 @@ public class AuthService {
                             "and special characters(!@#$%^&*()_+-=)"
             );
         }
+    }
+
+    /**
+     * 메일 인증 바디 전에 사용자 정보를 임시 저장
+     *
+     * @param token 현재 사용자의 임시 토큰
+     * @param email 현재 사용자의 이메일
+     * @param password 현재 사용자의 암호화된 비밀번호
+     */
+    private void saveTempUser(String token, String email, String password) {
+        String pendingKey = RedisKey.keyForSignupPending(email);
+
+        redisTemplate.opsForHash().put(pendingKey, "email", email);
+        redisTemplate.opsForHash().put(pendingKey, "password", password);
+        redisTemplate.expire(pendingKey, Duration.ofMinutes(5));
+
+
+        String tokenKey = RedisKey.keyForSignupPending(token);
+        redisTemplate.opsForValue().set(tokenKey, email);
+        redisTemplate.expire(tokenKey, Duration.ofMinutes(5));
     }
 }

@@ -148,14 +148,12 @@ class AuthServiceTest {
                 .hasMessageContaining("Password must include");
 
         // 최종 정상 입력
-        SignupResponse response = authService.localSignup(
+        authService.localSignup(
                 new SignupRequest(
                         "admin",
                         "asdfASDF12!"
                 )
         );
-
-        System.out.println("res: " + response);
     }
 
 }
