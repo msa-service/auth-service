@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import msa.service.auth.domain.dto.OauthUserInfo;
 import msa.service.auth.domain.entity.Account;
+import msa.service.auth.domain.enums.AccountState;
 import msa.service.auth.domain.enums.LoginType;
 import msa.service.auth.domain.exception.BadRequestException;
+import msa.service.auth.domain.exception.InternalServerException;
 import msa.service.auth.infra.oauth.OauthLoginStrategy;
 import msa.service.auth.infra.oauth.OauthLoginStrategyResolver;
 import msa.service.auth.repository.AccountRepository;
@@ -56,8 +58,8 @@ public class AuthService {
                     request.type(),
                     userInfo.userProviderId(),
                     "OAUTH",
-                    "ADMIN")
-            );
+                    AccountState.ACTIVE
+                    ));
 
             log.info("AuthService::oAuthLogin - userId={}, CREATE", nowAccount.getUserId());
         }
@@ -68,11 +70,21 @@ public class AuthService {
     }
 
     @Transactional
-    public void localSignup(SignupRequest request) {
+    public SignupResponse registerPendingUser(SignupRequest request) {
         // 1. id 중복 조회.
         Account account = getAccountByProvider(LoginType.LOCAL, request.email());
 
         if (account != null) {
+            // 회원 가입은 했는데 메일 인증은 하지앟는 경우.
+            if (account.getState() == AccountState.PENDING) {
+                return SignupResponse.from(
+                        account.getUserId(),
+                        account.getProviderId(),
+                        account.getState()
+                );
+            }
+
+            // 그 외 아이디 중복
             throw new BadRequestException("user email(%s) duplicate".formatted(request.email()
             ));
         }
@@ -80,14 +92,60 @@ public class AuthService {
         // 2. 비밀 번호 강도 조회.
         validatePassword(request.password());
 
+        // 3. 현재 정보를 db에 저장.
+        Account nowAccount = accountRepository.save(Account.create(
+                snowflake.nextId(),
+                LoginType.LOCAL,
+                request.email(),
+                passwordEncoder.encode(request.password()),
+                AccountState.PENDING
+        ));
+
         // 3. 현재 계정 정보를 redis에 저장.
         String token = UUID.randomUUID().toString();
-
-        saveTempUser(token, request.email(),
-                passwordEncoder.encode(request.password()));
+        saveTempUser(token, request.email());
 
         // 4. 인증용 메일 전송
         emailService.sendVerificationEmail(request.email(), token);
+
+        return SignupResponse.from(nowAccount.getUserId(),
+                nowAccount.getProviderId(), nowAccount.getState());
+    }
+
+    @Transactional
+    public SignupResponse confirmUserRegistration(String token) {
+        // 1. 시간 초과 여부 확인
+        String tokenKey = RedisKey.keyForSignupToken(token);
+
+        String userEmail = redisTemplate.opsForValue().get(tokenKey);
+        redisTemplate.delete(tokenKey);
+
+        if (userEmail == null) {
+            throw new BadRequestException(
+                    "AuthService.confirmUserRegistration(): The authentication request has expired."
+            );
+        }
+
+        // 2. 사용자 정보 조회 후
+        Account account = getAccountByProvider(LoginType.LOCAL, userEmail);
+
+        if (account == null) {
+            // db 등록은 안되어 있는데 redis에는 저장된 상황.
+            throw new InternalServerException(
+                    "AuthService.confirmUserRegistration(): User data inconsistency detected."
+            );
+        }
+
+        // 3. 계정 활성화 및 저장
+        account.setState(AccountState.ACTIVE);
+
+        accountRepository.save(account);
+
+        return SignupResponse.from(
+                account.getUserId(),
+                account.getProviderId(),
+                account.getState()
+        );
     }
 
     public Account getAccountByProvider(LoginType loginType, String id) {
@@ -148,17 +206,9 @@ public class AuthService {
      *
      * @param token 현재 사용자의 임시 토큰
      * @param email 현재 사용자의 이메일
-     * @param password 현재 사용자의 암호화된 비밀번호
      */
-    private void saveTempUser(String token, String email, String password) {
-        String pendingKey = RedisKey.keyForSignupPending(email);
-
-        redisTemplate.opsForHash().put(pendingKey, "email", email);
-        redisTemplate.opsForHash().put(pendingKey, "password", password);
-        redisTemplate.expire(pendingKey, Duration.ofMinutes(5));
-
-
-        String tokenKey = RedisKey.keyForSignupPending(token);
+    private void saveTempUser(String token, String email) {
+        String tokenKey = RedisKey.keyForSignupToken(token);
         redisTemplate.opsForValue().set(tokenKey, email);
         redisTemplate.expire(tokenKey, Duration.ofMinutes(5));
     }

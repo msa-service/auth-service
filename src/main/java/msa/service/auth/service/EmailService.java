@@ -24,7 +24,8 @@ public class EmailService {
         String verifyLink = baseUrl + apiUrl;
 
         String subject = "이메일 인증을 완료 해주세요.";
-        String text = "아래 링크를 클릭하여 이메일 인증을 완료하세요.\n" + verifyLink;
+        String text = "아래 링크를 클릭하여 이메일 인증을 완료하세요.\n" +
+                verifyLink + "?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);
