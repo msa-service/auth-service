@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
         // error message format: {class_name}.{method_name}: ~~
 
         if (level.equalsIgnoreCase("PRO")) {
-            errorResponse.setMessage(errorResponse.getMessage().split(":")[0].strip());
+            errorResponse.setMessage(errorResponse.getMessage().split(":")[1].strip());
         }
 
         return ResponseEntity

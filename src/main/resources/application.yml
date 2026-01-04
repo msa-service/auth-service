@@ -36,3 +36,12 @@ logging:
   # meg format: {func_name}: message.
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger - %msg%n"
+
+# noinspection undefined
+product:
+  level: PRO # PRO or DEV
+
+# noinspection undefined
+app:
+  base-url: http://localhost:9005
+  email-verify: /v1/auth/email/verify
