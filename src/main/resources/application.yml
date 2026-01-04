@@ -1,15 +1,19 @@
-server.port: 9005
+server:
+  port: 9005
 
 spring:
   application:
     name: auth
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
   datasource:
     url: jdbc:mysql://localhost:3306/testdb?serverTimezone=Asia/Seoul
     username: testuser
     password: testpw
 
   jpa:
-    database-platform: org.hibernate.dialect.MySQLDialect
     show-sql: true
     open-in-view: false
     hibernate:
@@ -21,3 +25,23 @@ spring:
       port: 6379
       password: testpw
 
+logging:
+  # level: TRACE -> DEBUG -> INFO -> WARN -> ERROR
+  level:
+    root: info
+
+  file:
+    name: logs/app.log
+
+  # meg format: {func_name}: message.
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger - %msg%n"
+
+# noinspection undefined
+product:
+  level: PRO # PRO or DEV
+
+# noinspection undefined
+app:
+  base-url: http://localhost:9005
+  email-verify: /v1/auth/email/verify

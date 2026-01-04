@@ -1,6 +1,7 @@
 package msa.service.auth.infra.oauth;
 
 import msa.service.auth.domain.enums.LoginType;
+import msa.service.auth.domain.exception.NotImplementedException;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -27,8 +28,10 @@ public class OauthLoginStrategyResolver {
         OauthLoginStrategy res = strategyMap.get(type);
 
         if (res == null) {
-            throw new IllegalArgumentException(
-                    "OauthLoginStrategyResolver.resolve(): unsupported type =" + type);
+            // enum에 새로운 방식을 들록했지만 OauthLoginStrategy를 등록하지 않은 상황.
+            throw new NotImplementedException(
+                    "OauthLoginStrategyResolver.resolve(): unsupported type=" + type
+            );
         }
 
         return res;

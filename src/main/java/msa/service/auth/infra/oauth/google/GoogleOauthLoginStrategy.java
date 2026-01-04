@@ -1,13 +1,21 @@
 package msa.service.auth.infra.oauth.google;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import msa.service.auth.domain.dto.OauthUserInfo;
 import msa.service.auth.domain.enums.LoginType;
+import msa.service.auth.domain.exception.ApiBadGateway;
+import msa.service.auth.domain.exception.BadRequestException;
+import msa.service.auth.domain.exception.InternalServerException;
 import msa.service.auth.infra.oauth.OauthLoginStrategy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Oauth: https://developers.google.com/identity/protocols/oauth2/web-server
@@ -20,6 +28,7 @@ import org.springframework.web.client.RestClient;
 public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${oauth.google.client-id}")
     private String clientId;
@@ -64,15 +73,19 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
                 "&redirect_uri=" + redirectUrl +
                 "&grant_type=authorization_code";
 
+        // 성공시 200, 실패시 4xx
         GoogleAccessTokenResponse result = restClient.post()
                 .uri(accessTokenApi)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(body)
                 .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError,
+                        handle4xxError("GoogleOauthLoginStrategy.verifyAndExtract()"))
+                .onStatus(HttpStatusCode::is5xxServerError, handle5xxError("token"))
                 .body(GoogleAccessTokenResponse.class);
 
         if (result == null || result.accessToken() == null) {
-            throw new SecurityException(
+            throw new BadRequestException(
                     "GoogleOauthLoginStrategy.verifyAndExtract(): Invalid auth code"
             );
         }
@@ -100,13 +113,66 @@ public class GoogleOauthLoginStrategy implements OauthLoginStrategy {
                 .uri(userInfoApi)
                 .headers(h -> h.setBearerAuth(accessToken))
                 .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError,
+                        handle4xxError("GoogleOauthLoginStrategy.getUserInformation()"))
+                .onStatus(HttpStatusCode::is5xxServerError, handle5xxError("userinfo"))
                 .body(GoogleUserInfoResponse.class);
 
         if (info == null || info.sub() == null) {
-            throw new IllegalArgumentException(
+            throw new BadRequestException(
                     "GoogleOauthLoginStrategy.getUserInformation(): Invalid access token");
         }
 
         return info;
+    }
+
+    /**
+     * authCode -> accessToken을 요청하는 과정에서 4xx 상태 코드가 반환되는 경우
+     * accessToken -> information을 요청하는 과정에서 4xx 상태 코드가 반환되는 경우
+     * 이를 client로 전달될 실제 에러 처리 handler 제공
+     *
+     * @param where 에러가 발생한 위치
+     * @return ErrorHandler
+     */
+    private RestClient.ResponseSpec.ErrorHandler handle4xxError(String where) {
+        return (req, res) -> {
+            try {
+                String raw = StreamUtils.copyToString(res.getBody(), StandardCharsets.UTF_8);
+
+                GithubErrorResponse error =
+                        objectMapper.readValue(raw, GithubErrorResponse.class);
+
+                // GoogleErrorResponse format 변경됨.
+                if (error.error() == null) {
+                    throw new InternalServerException(
+                            where + ": failed to read google error response"
+                    );
+                }
+
+                throw new BadRequestException(
+                        where + ": " + error.error()
+                );
+            } catch(IOException e) {
+                // objectMapper error -> GoogleErrorResponse change.
+                throw new InternalServerException(
+                        where + ": failed to read google error response"
+                );
+            }
+        };
+    }
+
+    /**
+     * authCode -> accessToken을 요청하는 과정에서 5xx 상태 코드가 반환되는 경우
+     * accessToken -> information을 요청하는 과정에서 5xx 상태 코드가 반환되는 경우
+     * 이를 client로 전달될 실제 에러 처리 handler 제공
+     *
+     * @param api 에러를 반환한 실제 요청한 api 명
+     * @return ErrorHandler
+     */
+    private RestClient.ResponseSpec.ErrorHandler handle5xxError(String api) {
+        return (req, res) -> {
+            throw new ApiBadGateway(
+                    "Google " + api + " service is temporarily unavailable.");
+        };
     }
 }
