@@ -9,9 +9,11 @@ import msa.service.auth.domain.enums.AccountState;
 import msa.service.auth.domain.enums.LoginType;
 import msa.service.auth.domain.exception.BadRequestException;
 import msa.service.auth.domain.exception.InternalServerException;
+import msa.service.auth.domain.exception.UnauthorizedException;
 import msa.service.auth.infra.oauth.OauthLoginStrategy;
 import msa.service.auth.infra.oauth.OauthLoginStrategyResolver;
 import msa.service.auth.repository.AccountRepository;
+import msa.service.auth.service.request.LoginRequest;
 import msa.service.auth.service.request.OAuthRequest;
 import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
@@ -146,6 +148,30 @@ public class AuthService {
                 account.getProviderId(),
                 account.getState()
         );
+    }
+
+    public LoginResponse localLogin(LoginRequest request) {
+
+        if (request.email() == null || request.password() == null ||
+        request.email().isBlank() || request.password().isBlank()) {
+            throw new BadRequestException("Email or password is missing.");
+        }
+
+        // 1. 계정 조회.
+        Account account = getAccountByProvider(LoginType.LOCAL, request.email());
+
+        if (account == null) {
+            throw new UnauthorizedException("Email or password is incorrect.");
+        }
+
+        // 2. 비밀번호 검사.
+        boolean matches = passwordEncoder.matches(request.password(), account.getPassword());
+
+        if (!matches) {
+            throw new UnauthorizedException("Email or password is incorrect.");
+        }
+
+        return LoginResponse.from(account.getProvider().toString(), account.getProviderId());
     }
 
     public Account getAccountByProvider(LoginType loginType, String id) {

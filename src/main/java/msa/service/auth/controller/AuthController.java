@@ -2,6 +2,7 @@ package msa.service.auth.controller;
 
 import lombok.RequiredArgsConstructor;
 import msa.service.auth.service.AuthService;
+import msa.service.auth.service.request.LoginRequest;
 import msa.service.auth.service.request.OAuthRequest;
 import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
@@ -10,7 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,6 +21,11 @@ public class AuthController {
     @PostMapping("/v1/auth/oauth")
     public LoginResponse oauth(@RequestBody OAuthRequest request) {
         return authService.oAuthLogin(request);
+    }
+
+    @PostMapping("/v1/auth/login")
+    public LoginResponse localLogin(@RequestBody LoginRequest request) {
+        return authService.localLogin(request);
     }
 
     @PostMapping("/v1/users")
@@ -40,7 +45,6 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
-
 
     @PostMapping("/v1/auth/validation")
     public ResponseEntity<?> validation() {
