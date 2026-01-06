@@ -11,4 +11,11 @@ public final class RedisKey {
     public static String keyForSignupToken(String token) {
         return "signup::token:" + token;
     }
+
+    /**
+     * 로그이웃 jwt 저장용 Redis 키를 생성합니다.
+     */
+    public static String keyForLogoutToken(String token) {
+        return "logout::token:" + token;
+     }
 }

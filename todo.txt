@@ -21,6 +21,9 @@
     [O] v2 : 이메일 인증 받아서 저장하기
 [O] Local 로그인 구현하기
 [/] JWT 추가하기
+    [O] JWT token provider 구현하기
+        - 토큰 생성, 토큰 검증 기능
+    [/] security filter 및 jwt fitler 추가
 [/] 로그 추가하기
 [/] Swagger 추가하기
 [/] 문서화
