@@ -28,7 +28,7 @@ public class AuthController {
         return authService.localLogin(request);
     }
 
-    @PostMapping("/v1/users")
+    @PostMapping("/v1/auth/signup")
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
 
         // 1. 실제 인증 메일 요청.

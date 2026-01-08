@@ -3,6 +3,7 @@ package msa.service.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import msa.service.auth.domain.dto.AccountDto;
 import msa.service.auth.domain.dto.OauthUserInfo;
 import msa.service.auth.domain.entity.Account;
 import msa.service.auth.domain.enums.AccountState;
@@ -12,14 +13,17 @@ import msa.service.auth.domain.exception.InternalServerException;
 import msa.service.auth.domain.exception.UnauthorizedException;
 import msa.service.auth.infra.oauth.OauthLoginStrategy;
 import msa.service.auth.infra.oauth.OauthLoginStrategyResolver;
+import msa.service.auth.jwt.JwtProvider;
 import msa.service.auth.repository.AccountRepository;
 import msa.service.auth.service.request.LoginRequest;
 import msa.service.auth.service.request.OAuthRequest;
 import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
 import msa.service.auth.service.response.SignupResponse;
+import msa.service.auth.util.HashUtil;
 import msa.service.auth.util.RedisKey;
 import msa.service.auth.util.Snowflake;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
@@ -34,9 +39,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
     private final AccountRepository accountRepository;
-    private final OauthLoginStrategyResolver oauthLoginStrategyResolver;
-    private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
+
+    private final OauthLoginStrategyResolver oauthLoginStrategyResolver;
+
+    private final PasswordEncoder passwordEncoder;
+    private final JwtProvider jwtProvider;
     private final EmailService emailService;
 
     private final Snowflake snowflake = new Snowflake();
@@ -68,7 +76,8 @@ public class AuthService {
 
         log.info("AuthService::oauthLogin - userId={}, SUCCESS", nowAccount.getUserId());
 
-        return LoginResponse.from(nowAccount.getProvider().toString(), nowAccount.getProviderId());
+        // 3. jwt 발급
+        return createLoginResponse(nowAccount);
     }
 
     @Transactional
@@ -171,7 +180,8 @@ public class AuthService {
             throw new UnauthorizedException("Email or password is incorrect.");
         }
 
-        return LoginResponse.from(account.getProvider().toString(), account.getProviderId());
+        // 3. jwt 발급.
+        return createLoginResponse(account);
     }
 
     public Account getAccountByProvider(LoginType loginType, String id) {
@@ -237,5 +247,35 @@ public class AuthService {
         String tokenKey = RedisKey.keyForSignupToken(token);
         redisTemplate.opsForValue().set(tokenKey, email);
         redisTemplate.expire(tokenKey, Duration.ofMinutes(5));
+    }
+
+    @Value("${jwt.refresh-expiration-ms}")
+    private long refreshTokenExpiration;
+
+    /**
+     * 현재 로그인한 정보에 대해 jwt 생성
+     * 
+     * @param account 로그인 계정 정보
+     * @return access_token & refresh_token
+     */
+    private LoginResponse createLoginResponse(Account account) {
+        // Account -> AccountDTO;
+        AccountDto nowUser = AccountDto.from(account.getUserId(), account.getState());
+
+        // access & refresh token 발급
+        LoginResponse response = LoginResponse.from(
+                jwtProvider.generateAccessToken(nowUser),
+                jwtProvider.generateRefreshToken(nowUser)
+        );
+
+        // redis에 refresh token 저장
+        String key = RedisKey.keyForRefreshToken(String.valueOf(nowUser.userId()));
+        String hashedRefresh = HashUtil.sha256(response.refreshToken());
+
+        long ttl = refreshTokenExpiration + 5 * 1000L; // token 만료시간 +5초.
+
+        redisTemplate.opsForValue().set(key, hashedRefresh, ttl, TimeUnit.MILLISECONDS);
+
+        return response;
     }
 }

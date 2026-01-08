@@ -9,13 +9,17 @@ public final class RedisKey {
      * Redis 키를 생성합니다.
      */
     public static String keyForSignupToken(String token) {
-        return "signup::token:" + token;
+        return "signup:token:" + token;
     }
 
     /**
      * 로그이웃 jwt 저장용 Redis 키를 생성합니다.
      */
     public static String keyForLogoutToken(String token) {
-        return "logout::token:" + token;
-     }
+        return "logout:token:" + token;
+    }
+
+    public static String keyForRefreshToken(String userId) {
+        return "refresh:user:" + userId;
+    }
 }

@@ -20,10 +20,10 @@ import java.util.Date;
 @Component
 public class JwtProvider {
 
-    @Value("${jwt.access-expiration}")
+    @Value("${jwt.access-expiration-ms}")
     private long accessTokenExpiration;
 
-    @Value("${jwt.refresh-expiration}")
+    @Value("${jwt.refresh-expiration-ms}")
     private long refreshTokenExpiration;
 
     private final StringRedisTemplate redisTemplate;

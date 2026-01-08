@@ -20,10 +20,14 @@
     [O] v1 : 비밀번호 암호화해서 저장하기
     [O] v2 : 이메일 인증 받아서 저장하기
 [O] Local 로그인 구현하기
-[/] JWT 추가하기
+[O] JWT 추가하기
     [O] JWT token provider 구현하기
         - 토큰 생성, 토큰 검증 기능
-    [/] security filter 및 jwt fitler 추가
+    [O] security filter 및 jwt fitler 추가
+    [O] 로그인 시 accsstoken 및 refresh token 제공
+[/] JWt 테스트하기
+[/] 로그아웃 및 rt을 이용한 at & rt 재발급 추가
+
 [/] 로그 추가하기
 [/] Swagger 추가하기
 [/] 문서화
