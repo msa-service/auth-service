@@ -20,11 +20,9 @@ import java.util.Date;
 @Component
 public class JwtProvider {
 
-    @Value("${jwt.access-expiration-ms}")
-    private long accessTokenExpiration;
+    private final long accessTokenExpiration;
 
-    @Value("${jwt.refresh-expiration-ms}")
-    private long refreshTokenExpiration;
+    private final long refreshTokenExpiration;
 
     private final StringRedisTemplate redisTemplate;
 
@@ -34,8 +32,15 @@ public class JwtProvider {
 
     private final Key key;
 
-    public JwtProvider(StringRedisTemplate redisTemplate, @Value("${jwt.secret}") String secret) {
+    public JwtProvider(StringRedisTemplate redisTemplate,
+                       @Value("${jwt.secret}") String secret,
+                       @Value("${jwt.access-expiration-ms}") long atExp,
+                       @Value("${jwt.refresh-expiration-ms}") long rtExp
+                       ) {
         this.redisTemplate = redisTemplate;
+        this.accessTokenExpiration = atExp;
+        this.refreshTokenExpiration = rtExp;
+
         if (secret == null || secret.isBlank()) {
             throw new IllegalArgumentException("Jwt secret is null");
         }

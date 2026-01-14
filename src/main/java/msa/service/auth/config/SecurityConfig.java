@@ -29,13 +29,17 @@ public class SecurityConfig {
 
     private static final String[] LOGIN_ONCE = {
             "/v1/auth/oauth",
-            "/v1/auth/login"
+            "/v1/auth/login",
+            "/v1/auth/signup"
     };
 
     private static final String[] PERMIT_ALL = {
-            "/v1/auth/signup",
             "/v1/auth/email/verify",
-            "/v1/api/allow"
+            "/v1/test/allow",
+    };
+
+    private static final String[] NEED_AUTH = {
+            "/v1/test/secret",
     };
 
     @Bean
@@ -52,9 +56,16 @@ public class SecurityConfig {
                                 // 로그인한 유저가 다시 접근하는 것을 예방.
                                 .requestMatchers(LOGIN_ONCE).anonymous()
                                 .requestMatchers(PERMIT_ALL).permitAll()
-                                //
+                                .requestMatchers(NEED_AUTH).authenticated()
+                                // 보호 구간을 넓게 설정
+                                .requestMatchers("/v1/auth/**").authenticated()
+
+                                // 그 외 모두 거절
                                 .anyRequest().permitAll()
                         )
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((req, res, ex) -> res.sendError(401))
+                        .accessDeniedHandler((req, res, ex) -> res.sendError(403)))
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
 

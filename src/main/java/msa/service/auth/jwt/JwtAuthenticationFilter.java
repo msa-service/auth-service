@@ -35,8 +35,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwt = getToken(authorizationHeader);
 
+        if (jwt == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // jwt 검증
-        if (jwt != null && jwtProvider.verifyToken(jwt)) {
+        if (jwtProvider.verifyToken(jwt)) {
 
             AccountDto principal = jwtProvider.tokenToAccountDto(jwt);
 
@@ -48,7 +53,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // SecurityContext 저장
             SecurityContextHolder.getContext().setAuthentication(authentication);
-
+        } else {
+            SecurityContextHolder.clearContext();
         }
 
         // 다음 필터로 이동.
