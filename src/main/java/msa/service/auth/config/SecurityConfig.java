@@ -34,6 +34,7 @@ public class SecurityConfig {
 
     private static final String[] PERMIT_ALL = {
             "/v1/auth/email/verify",
+            "/v1/auth/refresh",
             "/v1/test/allow",
     };
 

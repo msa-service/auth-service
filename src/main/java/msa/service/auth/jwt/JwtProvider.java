@@ -100,10 +100,19 @@ public class JwtProvider {
     }
 
     public Date getExpiration(String token) {
-        if (!verifyToken(token))
+        try {
+            return getClaims(token).getExpiration();
+        } catch (Exception e) {
             return new Date();
+        }
+    }
 
-        return getClaims(token).getExpiration();
+    public Long getUserId(String token) {
+        try {
+            return getClaims(token).get(ACCOUNT_ID, Long.class);
+        } catch (Exception e) {
+            return -1L;
+        }
     }
 
     private String generateToken(AccountDto account, long expireTime) {

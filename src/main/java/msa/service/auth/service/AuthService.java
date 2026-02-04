@@ -189,13 +189,29 @@ public class AuthService {
     @Transactional
     public LoginResponse refreshUser(RefreshRequest request) {
         // 1. rt 검증
-        if (jwtProvider.verifyToken(request.refreshToken()));
+        if (!jwtProvider.verifyToken(request.refreshToken())) {
+            throw  new BadRequestException("Invalid refresh token: expired");
+        }
 
+        // 2. redis에 해당 token 존재 여부 조회.
+        // 만료된 rt에 대해서는 실제 사용자 ID 조회 X
+        Long userId = jwtProvider.getUserId(request.refreshToken());
 
-        // redis에 해당 refresh token 존재 여부 조회.
+        String token = redisTemplate.opsForValue()
+                .get(RedisKey.keyForRefreshToken(String.valueOf(userId)));
+        String hashedRefresh = HashUtil.sha256(request.refreshToken());
 
-        // 2.
-        return null;
+        log.info("token = {}, hashed = {}", token, hashedRefresh);
+
+        if (token == null || !token.equals(hashedRefresh)) {
+            throw new BadRequestException(("Invalid refresh token: inconsistency"));
+        }
+
+        // 3. 재발급
+        Account account = accountRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("Invalid Account Information"));
+
+        return createLoginResponse(account);
     }
 
     @Transactional
@@ -205,7 +221,7 @@ public class AuthService {
 
         // 2. 현재 at를 블랙 리스트로 저장
         Date exp = jwtProvider.getExpiration(at);
-        
+
         long ttlSeconds = (exp.getTime() - new Date().getTime()) / 1000 + 1;
 
         redisTemplate.opsForValue().set(RedisKey.keyForLogoutToken(at), "1"

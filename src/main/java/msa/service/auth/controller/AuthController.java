@@ -1,6 +1,7 @@
 package msa.service.auth.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import msa.service.auth.domain.dto.AccountDto;
 import msa.service.auth.service.AuthService;
 import msa.service.auth.service.request.LoginRequest;
@@ -15,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class AuthController {
@@ -49,7 +51,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/v1/auth/logout")
+    @PostMapping("/v1/auth/logout")
     public ResponseEntity<?> logout(
             @RequestHeader(name = "Authorization") String at,
             @AuthenticationPrincipal AccountDto user
@@ -63,6 +65,8 @@ public class AuthController {
 
     @PostMapping("/v1/auth/refresh")
     public LoginResponse refreshToken(@RequestBody RefreshRequest request) {
+
+        log.info("RefreshRequest = {}", request);
         return authService.refreshUser(request);
     }
 
