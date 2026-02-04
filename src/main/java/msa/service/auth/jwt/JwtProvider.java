@@ -99,6 +99,13 @@ public class JwtProvider {
         return AccountDto.from(userId, accountState);
     }
 
+    public Date getExpiration(String token) {
+        if (!verifyToken(token))
+            return new Date();
+
+        return getClaims(token).getExpiration();
+    }
+
     private String generateToken(AccountDto account, long expireTime) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expireTime);

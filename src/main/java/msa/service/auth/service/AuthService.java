@@ -17,6 +17,7 @@ import msa.service.auth.jwt.JwtProvider;
 import msa.service.auth.repository.AccountRepository;
 import msa.service.auth.service.request.LoginRequest;
 import msa.service.auth.service.request.OAuthRequest;
+import msa.service.auth.service.request.RefreshRequest;
 import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
 import msa.service.auth.service.response.SignupResponse;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -182,6 +184,32 @@ public class AuthService {
 
         // 3. jwt 발급.
         return createLoginResponse(account);
+    }
+
+    @Transactional
+    public LoginResponse refreshUser(RefreshRequest request) {
+        // 1. rt 검증
+        if (jwtProvider.verifyToken(request.refreshToken()));
+
+
+        // redis에 해당 refresh token 존재 여부 조회.
+
+        // 2.
+        return null;
+    }
+
+    @Transactional
+    public void logout(AccountDto user, String at) {
+        // 1. 사용자의 rt 삭제
+        redisTemplate.delete(RedisKey.keyForRefreshToken(String.valueOf(user.userId())));
+
+        // 2. 현재 at를 블랙 리스트로 저장
+        Date exp = jwtProvider.getExpiration(at);
+        
+        long ttlSeconds = (exp.getTime() - new Date().getTime()) / 1000 + 1;
+
+        redisTemplate.opsForValue().set(RedisKey.keyForLogoutToken(at), "1"
+                , Duration.ofSeconds(ttlSeconds));
     }
 
     public Account getAccountByProvider(LoginType loginType, String id) {

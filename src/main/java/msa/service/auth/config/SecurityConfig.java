@@ -2,7 +2,6 @@ package msa.service.auth.config;
 
 import lombok.RequiredArgsConstructor;
 import msa.service.auth.jwt.JwtAuthenticationFilter;
-import org.apache.catalina.User;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -39,6 +38,7 @@ public class SecurityConfig {
     };
 
     private static final String[] NEED_AUTH = {
+            "/v1/auth/logout",
             "/v1/test/secret",
     };
 
@@ -61,7 +61,7 @@ public class SecurityConfig {
                                 .requestMatchers("/v1/auth/**").authenticated()
 
                                 // 그 외 모두 거절
-                                .anyRequest().permitAll()
+                                .anyRequest().denyAll()
                         )
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> res.sendError(401))

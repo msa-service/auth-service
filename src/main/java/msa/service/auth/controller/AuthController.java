@@ -1,14 +1,17 @@
 package msa.service.auth.controller;
 
 import lombok.RequiredArgsConstructor;
+import msa.service.auth.domain.dto.AccountDto;
 import msa.service.auth.service.AuthService;
 import msa.service.auth.service.request.LoginRequest;
 import msa.service.auth.service.request.OAuthRequest;
+import msa.service.auth.service.request.RefreshRequest;
 import msa.service.auth.service.request.SignupRequest;
 import msa.service.auth.service.response.LoginResponse;
 import msa.service.auth.service.response.SignupResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -44,6 +47,23 @@ public class AuthController {
         SignupResponse response = authService.confirmUserRegistration(token);
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/v1/auth/logout")
+    public ResponseEntity<?> logout(
+            @RequestHeader(name = "Authorization") String at,
+            @AuthenticationPrincipal AccountDto user
+            ) {
+
+        at = at.substring("Bearer ".length());
+        authService.logout(user, at);
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/v1/auth/refresh")
+    public LoginResponse refreshToken(@RequestBody RefreshRequest request) {
+        return authService.refreshUser(request);
     }
 
     @PostMapping("/v1/auth/validation")

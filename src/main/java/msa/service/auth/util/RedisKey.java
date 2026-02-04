@@ -19,6 +19,9 @@ public final class RedisKey {
         return "logout:token:" + token;
     }
 
+    /**
+     * 사용자의 refresh token을 저장하기 위한 키 생성합니다.
+     */
     public static String keyForRefreshToken(String userId) {
         return "refresh:user:" + userId;
     }
